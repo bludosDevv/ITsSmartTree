@@ -2,9 +2,10 @@
 
 **ITs Smart Tree** is a lightweight, single-file 3D procedural vegetation generator built entirely in JavaScript and WebGL (Three.js). 
 
-It generates unique, organic 3D trees in real-time using recursive algorithms and procedural texture generation. It features a complete UI for customization and supports exporting to industry-standard 3D formats (GLB & OBJ) for use in Blender, Unity, Unreal Engine, or Godot.
+It generates unique, organic 3D trees in real-time using recursive algorithms and procedural texture generation. It features a complete UI for customization and supports exporting to industry-standard 3D formats (GLB & OBJ) for use in ITs Magic game engine, Blender, Unity, Unreal Engine, or Godot.
 
-![Tree Engine Preview](https://via.placeholder.com/800x400?text=ITs+Smart+Tree+Preview)
+## Images
+_idk how to put images here lol_
 
 ## ✨ Features
 
