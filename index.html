@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ITs Smart Tree - Ultimate Edition (OBJ Fixed)</title>
+    <style>
+        /* --- DARK THEME UI --- */
+        :root { --primary: #ff9800; --bg: #121212; --panel: #1e1e1e; --text: #e0e0e0; }
+        body { margin: 0; overflow: hidden; background: var(--bg); font-family: 'Segoe UI', Roboto, sans-serif; color: var(--text); user-select: none; }
+        
+        /* LOADING SCREEN */
+        #loading {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg); z-index: 9999; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; transition: opacity 0.5s;
+        }
+        .spinner {
+            width: 50px; height: 50px; border: 4px solid #333; border-top-color: var(--primary);
+            border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 20px;
+        }
+        .load-text { font-size: 14px; font-weight: bold; letter-spacing: 1px; color: var(--primary); }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* HEADER */
+        .header {
+            position: absolute; top: 0; left: 0; width: 100%; padding: 15px;
+            background: linear-gradient(180deg, rgba(0,0,0,0.8), transparent); pointer-events: none; z-index: 10;
+        }
+        .header h1 { margin: 0; font-size: 20px; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+        .header span { font-size: 10px; background: var(--primary); color: #000; padding: 2px 6px; border-radius: 4px; vertical-align: middle; margin-left: 8px; font-weight: 800; }
+
+        /* SETTINGS PANEL */
+        .panel {
+            position: absolute; top: 0; right: 0; width: 320px; height: 100%;
+            background: rgba(30, 30, 30, 0.95); backdrop-filter: blur(10px);
+            border-left: 1px solid #333; display: flex; flex-direction: column;
+            transform: translateX(0); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 100;
+        }
+        .panel.closed { transform: translateX(100%); }
+
+        /* TOGGLE BUTTON */
+        .toggle-btn {
+            position: absolute; top: 15px; right: 15px; z-index: 101;
+            background: #333; border: 1px solid #555; color: white;
+            width: 44px; height: 44px; border-radius: 8px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; font-size: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: 0.2s;
+        }
+        .toggle-btn:active { transform: scale(0.95); }
+
+        /* SCROLL AREA */
+        .scroll-content { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 80px; }
+        .scroll-content::-webkit-scrollbar { width: 6px; }
+        .scroll-content::-webkit-scrollbar-thumb { background: #555; border-radius: 3px; }
+
+        /* CONTROLS */
+        .section-title {
+            color: var(--primary); font-size: 11px; font-weight: bold; text-transform: uppercase;
+            margin: 25px 0 10px 0; padding-bottom: 5px; border-bottom: 1px solid #444; letter-spacing: 1px;
+        }
+        .section-title:first-child { margin-top: 0; }
+        
+        .control-group { margin-bottom: 15px; }
+        .row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        label { font-size: 13px; color: #ccc; }
+        .val { font-size: 11px; color: #888; font-family: monospace; }
+        
+        /* INPUTS */
+        input[type=range] {
+            width: 100%; -webkit-appearance: none; background: transparent; height: 20px; cursor: pointer;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px; background: #444; border-radius: 2px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%;
+            background: #fff; margin-top: -6px; box-shadow: 0 2px 4px rgba(0,0,0,0.5); transition: 0.2s;
+        }
+        input[type=range]:hover::-webkit-slider-thumb { background: var(--primary); }
+
+        select, input[type=color] {
+            width: 100%; background: #222; border: 1px solid #444; color: white;
+            padding: 10px; border-radius: 6px; font-size: 13px; outline: none; -webkit-appearance: none;
+        }
+        input[type=color] { height: 40px; padding: 2px; cursor: pointer; }
+
+        /* FOOTER ACTIONS */
+        .footer {
+            position: absolute; bottom: 0; width: 100%; padding: 15px; background: #1a1a1a;
+            border-top: 1px solid #333; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+            box-sizing: border-box;
+        }
+        .btn {
+            border: none; padding: 12px; border-radius: 6px; font-weight: bold; font-size: 12px;
+            cursor: pointer; color: white; text-transform: uppercase; transition: 0.2s;
+        }
+        .btn:hover { filter: brightness(1.1); transform: translateY(-2px); }
+        .btn:active { transform: translateY(0); }
+        .btn-gen { grid-column: span 2; background: #333; border: 1px solid #555; }
+        .btn-glb { background: #2e7d32; } /* Green */
+        .btn-obj { background: #d84315; } /* Orange */
+
+        /* TOAST */
+        #toast {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.9); color: white; padding: 10px 20px; border-radius: 30px;
+            font-size: 13px; opacity: 0; pointer-events: none; transition: 0.3s; z-index: 200;
+            border: 1px solid #333; box-shadow: 0 5px 15px rgba(0,0,0,0.5); white-space: nowrap;
+        }
+
+        /* MOBILE OPTIMIZATION */
+        @media (max-width: 600px) {
+            .panel { width: 100%; max-width: 360px; }
+            .toggle-btn { top: 10px; right: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading">
+        <div class="spinner"></div>
+        <div class="load-text">LOADING ENGINE...</div>
+    </div>
+    
+    <div id="toast">Notification</div>
+
+    <div class="header">
+        <h1>ITs Smart Tree <span>PRO</span></h1>
+    </div>
+
+    <button class="toggle-btn" id="btn-toggle">☰</button>
+
+    <div class="panel" id="panel">
+        <div class="scroll-content">
+            
+            <div class="section-title">Presets & Style</div>
+            <div class="control-group">
+                <select id="sel-preset">
+                    <option value="oak">🌳 Oak (Standard)</option>
+                    <option value="pine">🌲 Pine / Spruce</option>
+                    <option value="birch">🌿 Birch (Tall/Thin)</option>
+                    <option value="willow">🥀 Willow (Droopy)</option>
+                    <option value="cherry">🌸 Cherry Blossom</option>
+                    <option value="autumn">🍁 Autumn Oak</option>
+                    <option value="bush">🌿 Shrub / Bush</option>
+                    <option value="alien">👽 Alien Flora</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <div class="row"><label>Render Style</label></div>
+                <select id="sel-style">
+                    <option value="real">✨ Realistic (Smooth)</option>
+                    <option value="voxel">🧊 Voxel (LOD / Blocky)</option>
+                </select>
+            </div>
+
+            <div class="section-title">Trunk Settings</div>
+            <div class="control-group">
+                <div class="row"><label>Height</label><span id="val-height" class="val">10</span></div>
+                <input type="range" id="inp-height" min="2" max="25" step="0.5" value="10">
+            </div>
+            <div class="control-group">
+                <div class="row"><label>Thickness</label><span id="val-thick" class="val">0.8</span></div>
+                <input type="range" id="inp-thick" min="0.1" max="3.0" step="0.1" value="0.8">
+            </div>
+            <div class="control-group">
+                <div class="row"><label>Taper (Top Width)</label><span id="val-taper" class="val">0.7</span></div>
+                <input type="range" id="inp-taper" min="0.1" max="1.0" step="0.05" value="0.7">
+            </div>
+            <div class="control-group">
+                <div class="row"><label>Bark Color</label></div>
+                <input type="color" id="inp-color-bark" value="#5d4037">
+            </div>
+
+            <div class="section-title">Branching</div>
+            <div class="control-group">
+                <div class="row"><label>Density</label><span id="val-bdens" class="val">3</span></div>
+                <input type="range" id="inp-bdens" min="1" max="8" step="1" value="3">
+            </div>
+            <div class="control-group">
+                <div class="row"><label>Spread Angle</label><span id="val-angle" class="val">0.6</span></div>
+                <input type="range" id="inp-angle" min="0.1" max="1.5" step="0.1" value="0.6">
+            </div>
+            <div class="control-group">
+                <div class="row"><label>Gravity (Droop)</label><span id="val-grav" class="val">0.1</span></div>
+                <input type="range" id="inp-grav" min="-0.5" max="1.5" step="0.1" value="0.1">
+            </div>
+            <div class="control-group">
+                <div class="row"><label>Noise / Crookedness</label><span id="val-noise" class="val">0.5</span></div>
+                <input type="range" id="inp-noise" min="0" max="2.0" step="0.1" value="0.5">
+            </div>
+
+            <div class="section-title">Foliage</div>
+            <div class="control-group">
+                <div class="row"><label>Leaf Density</label><span id="val-ldens" class="val">1.0</span></div>
+                <input type="range" id="inp-ldens" min="0" max="3.0" step="0.1" value="1.0">
+            </div>
+            <div class="control-group">
+                <div class="row"><label>Leaf Size</label><span id="val-lsize" class="val">1.5</span></div>
+                <input type="range" id="inp-lsize" min="0.1" max="4.0" step="0.1" value="1.5">
+            </div>
+            <div class="control-group">
+                <div class="row"><label>Leaf Type</label></div>
+                <select id="sel-leaf-type">
+                    <option value="broad">🍃 Broad Leaf</option>
+                    <option value="needle">🌲 Pine Needle</option>
+                    <option value="circle">⚪ Round / Stylized</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <div class="row"><label>Leaf Color</label></div>
+                <input type="color" id="inp-color-leaf" value="#2e7d32">
+            </div>
+
+            <div class="section-title">World</div>
+            <div class="control-group">
+                <div class="row"><label>Random Seed</label><span id="val-seed" class="val">1</span></div>
+                <input type="range" id="inp-seed" min="1" max="999" step="1" value="1">
+            </div>
+             <div class="control-group">
+                <div class="row"><label>Sun Intensity</label><span id="val-sun" class="val">2.5</span></div>
+                <input type="range" id="inp-sun" min="0" max="5" step="0.1" value="2.5">
+            </div>
+
+        </div>
+        <div class="footer">
+            <button class="btn btn-gen" id="btn-gen">Generate New Tree</button>
+            <button class="btn btn-glb" id="btn-glb">Save GLB</button>
+            <button class="btn btn-obj" id="btn-obj">Save OBJ</button>
+        </div>
+    </div>
+
+    <!-- IMPORTANT: USING JSDELIVR -->
+    <script async src="https://ga.jspm.io/npm:es-module-shims@1.8.0/dist/es-module-shims.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+        import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
+        // NOTE: OBJ Exporter is loaded dynamically below
+
+        // --- PRESET DATA ---
+        const PRESETS = {
+            oak:    { height: 10, thick: 0.8, taper: 0.7, branchDens: 3, angle: 0.6, gravity: 0.1, noise: 0.5, leafType: 'broad', leafColor: '#2e7d32', leafSize: 1.5, barkColor: '#5d4037' },
+            pine:   { height: 16, thick: 1.2, taper: 0.5, branchDens: 5, angle: 1.3, gravity: 0.0, noise: 0.1, leafType: 'needle', leafColor: '#1b5e20', leafSize: 1.2, barkColor: '#3e2723' },
+            birch:  { height: 14, thick: 0.4, taper: 0.8, branchDens: 2, angle: 0.4, gravity: 0.1, noise: 0.2, leafType: 'broad', leafColor: '#66bb6a', leafSize: 1.2, barkColor: '#d7ccc8' },
+            willow: { height: 9, thick: 1.0, taper: 0.9, branchDens: 4, angle: 0.5, gravity: 0.9, noise: 0.4, leafType: 'broad', leafColor: '#558b2f', leafSize: 1.3, barkColor: '#4e342e' },
+            cherry: { height: 8, thick: 0.7, taper: 0.7, branchDens: 4, angle: 0.7, gravity: 0.2, noise: 0.6, leafType: 'circle', leafColor: '#ff80ab', leafSize: 1.8, barkColor: '#3e2723' },
+            autumn: { height: 11, thick: 0.9, taper: 0.6, branchDens: 3, angle: 0.6, gravity: 0.2, noise: 0.5, leafType: 'broad', leafColor: '#ff6f00', leafSize: 1.6, barkColor: '#4e342e' },
+            bush:   { height: 3, thick: 0.3, taper: 0.6, branchDens: 6, angle: 0.9, gravity: 0.1, noise: 1.0, leafType: 'broad', leafColor: '#33691e', leafSize: 1.2, barkColor: '#5d4037' },
+            alien:  { height: 15, thick: 0.6, taper: 0.9, branchDens: 4, angle: 1.0, gravity: -0.4, noise: 1.5, leafType: 'circle', leafColor: '#7c4dff', leafSize: 2.5, barkColor: '#212121' }
+        };
+
+        // --- STATE ---
+        const config = { ...PRESETS.oak, style: 'real', seed: 1, sun: 2.5 };
+
+        // --- TEXTURE GENERATION ---
+        function createTexture(type) {
+            const size = 512;
+            const cvs = document.createElement('canvas');
+            cvs.width = size; cvs.height = size;
+            const ctx = cvs.getContext('2d');
+            
+            if(type === 'bark') {
+                ctx.fillStyle = '#888'; ctx.fillRect(0,0,size,size);
+                for(let i=0;i<4000;i++) {
+                    ctx.fillStyle = Math.random()>0.5?'#666':'#aaa';
+                    ctx.fillRect(Math.random()*size, Math.random()*size, 3, Math.random()*30);
+                }
+            } else if (type === 'leaf_broad') {
+                ctx.translate(size/2,size/2); ctx.beginPath();
+                ctx.ellipse(0,0, 60, 150, 0, 0, Math.PI*2);
+                ctx.fillStyle='#fff'; ctx.fill();
+            } else if (type === 'leaf_needle') {
+                 ctx.fillStyle='#fff'; ctx.fillRect(0,0,size,size);
+            } else if (type === 'leaf_circle') {
+                ctx.beginPath(); ctx.arc(size/2,size/2,150,0,Math.PI*2);
+                ctx.fillStyle='#fff'; ctx.fill();
+            }
+            const t = new THREE.CanvasTexture(cvs);
+            t.wrapS = t.wrapT = THREE.RepeatWrapping;
+            t.colorSpace = THREE.SRGBColorSpace;
+            return t;
+        }
+
+        const TEXTURES = {
+            bark: createTexture('bark'),
+            broad: createTexture('leaf_broad'),
+            needle: createTexture('leaf_needle'),
+            circle: createTexture('leaf_circle')
+        };
+
+        // --- SCENE SETUP ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x222222);
+        
+        const camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 10, 30);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.target.set(0, 8, 0);
+
+        // Lights
+        const ambLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambLight);
+        const sun = new THREE.DirectionalLight(0xffffff, 2.5);
+        sun.position.set(20, 50, 20);
+        sun.castShadow = true;
+        sun.shadow.mapSize.width = 2048; sun.shadow.mapSize.height = 2048;
+        sun.shadow.bias = -0.0001;
+        scene.add(sun);
+
+        // Floor
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(100,100), new THREE.MeshStandardMaterial({color: 0x111111, roughness: 1}));
+        floor.rotation.x = -Math.PI/2; floor.receiveShadow = true;
+        scene.add(floor);
+        scene.add(new THREE.GridHelper(60, 60, 0x444444, 0x222222));
+
+        const treeGroup = new THREE.Group();
+        scene.add(treeGroup);
+
+        // --- GENERATION ENGINE ---
+        let rng = 0;
+        function random() { const x = Math.sin(rng++) * 10000; return x - Math.floor(x); }
+
+        function generate() {
+            while(treeGroup.children.length) {
+                const c = treeGroup.children[0];
+                if(c.geometry) c.geometry.dispose();
+                if(c.material) c.material.dispose();
+                treeGroup.remove(c);
+            }
+
+            rng = config.seed * 999;
+            sun.intensity = config.sun;
+            const branches = [];
+            const leaves = [];
+            const isVoxel = config.style === 'voxel';
+            
+            const matBark = new THREE.MeshStandardMaterial({ 
+                color: config.barkColor, 
+                map: isVoxel ? null : TEXTURES.bark,
+                roughness: 0.9 
+            });
+            const matLeaf = new THREE.MeshStandardMaterial({ 
+                color: config.leafColor,
+                map: isVoxel ? null : TEXTURES[config.leafType],
+                alphaTest: 0.5, side: THREE.DoubleSide, transparent: true
+            });
+
+            const maxDepth = isVoxel ? 3 : (config.height > 15 ? 4 : 3);
+            
+            function grow(pos, dir, len, rad, depth) {
+                const end = pos.clone().add(dir.clone().multiplyScalar(len));
+                const mid = pos.clone().add(end).multiplyScalar(0.5);
+                const n = config.noise * (depth/maxDepth) * 2;
+                mid.x += (random()-0.5)*n; mid.z += (random()-0.5)*n;
+                
+                if(depth < maxDepth-1) end.y -= config.gravity * len;
+
+                if(isVoxel) {
+                    const box = new THREE.BoxGeometry(rad*2, len, rad*2);
+                    box.translate(0, len/2, 0);
+                    const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0), dir.clone().normalize());
+                    box.applyQuaternion(q);
+                    box.translate(pos.x, pos.y, pos.z);
+                    branches.push(box);
+                } else {
+                    const curve = new THREE.CatmullRomCurve3([pos, mid, end]);
+                    const tube = new THREE.TubeGeometry(curve, 3, rad, 4, false);
+                    branches.push(tube);
+                }
+
+                if(depth <= 1 && config.leafDens > 0) {
+                    const count = Math.floor(isVoxel ? 1 : 5 * config.leafDens);
+                    for(let i=0; i<count; i++) {
+                        const m = new THREE.Matrix4();
+                        const p = end.clone();
+                        const j = isVoxel ? 0.2 : 1.0;
+                        p.x += (random()-0.5)*j; p.y += (random()-0.5)*j; p.z += (random()-0.5)*j;
+                        
+                        m.setPosition(p);
+                        const s = config.leafSize * (isVoxel ? 0.4 : (0.8 + random()*0.4));
+                        m.scale(new THREE.Vector3(s,s,s));
+                        
+                        const r = new THREE.Euler(random()*6, random()*6, random()*6);
+                        m.multiply(new THREE.Matrix4().makeRotationFromEuler(r));
+                        leaves.push(m);
+                    }
+                }
+
+                if(depth > 0) {
+                    const count = Math.floor(config.branchDens);
+                    for(let i=0; i<count; i++) {
+                        const sx = (random()-0.5);
+                        const sz = (random()-0.5);
+                        const sy = (config.leafType === 'needle') ? 0.3 : (random()-0.2);
+                        const spread = new THREE.Vector3(sx, sy, sz).normalize();
+                        const nextDir = dir.clone().lerp(spread, config.angle).normalize();
+                        grow(end, nextDir, len * config.taper, rad * config.taper, depth-1);
+                    }
+                }
+            }
+
+            grow(new THREE.Vector3(0,0,0), new THREE.Vector3(0,1,0), config.height, config.thick, maxDepth);
+
+            if(branches.length) {
+                const geo = BufferGeometryUtils.mergeGeometries(branches);
+                if(!isVoxel) { 
+                     const uv = geo.attributes.uv;
+                     for(let i=0; i<uv.count; i++) uv.setY(i, uv.getY(i)*(config.height/2));
+                }
+                const mesh = new THREE.Mesh(geo, matBark);
+                mesh.castShadow = true; mesh.receiveShadow = true;
+                treeGroup.add(mesh);
+            }
+
+            if(leaves.length) {
+                let geo;
+                if(isVoxel) geo = new THREE.BoxGeometry(1,1,1);
+                else {
+                    const p1 = new THREE.PlaneGeometry(1,1);
+                    const p2 = p1.clone().rotateY(Math.PI/2);
+                    geo = BufferGeometryUtils.mergeGeometries([p1,p2]);
+                }
+                const mesh = new THREE.InstancedMesh(geo, matLeaf, leaves.length);
+                for(let i=0; i<leaves.length; i++) mesh.setMatrixAt(i, leaves[i]);
+                mesh.instanceMatrix.needsUpdate = true;
+                mesh.castShadow = true; mesh.receiveShadow = true;
+                treeGroup.add(mesh);
+            }
+        }
+
+        // --- EXPORT HANDLING ---
+        function showToast(msg, isError=false) {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.style.border = isError ? "1px solid red" : "1px solid #333";
+            t.style.opacity = 1;
+            setTimeout(() => t.style.opacity = 0, 3000);
+        }
+
+        async function doExport(fmt) {
+            showToast(`Generating ${fmt.toUpperCase()}...`);
+
+            try {
+                // Prepare Object: Convert InstancedMesh to Geometry for compatibility
+                let exportObj = treeGroup;
+                
+                // For OBJ (and some GLTF viewers), we need to bake instances
+                if(fmt === 'obj' || fmt === 'glb') {
+                    const clonedGroup = new THREE.Group();
+                    treeGroup.children.forEach(child => {
+                        if(child.isInstancedMesh) {
+                            const count = child.count;
+                            const geoms = [];
+                            for(let i=0; i<count; i++) {
+                                const mat = new THREE.Matrix4();
+                                child.getMatrixAt(i, mat);
+                                const g = child.geometry.clone();
+                                g.applyMatrix4(mat);
+                                geoms.push(g);
+                            }
+                            if(geoms.length) {
+                                const merged = BufferGeometryUtils.mergeGeometries(geoms);
+                                clonedGroup.add(new THREE.Mesh(merged, child.material));
+                            }
+                        } else {
+                            clonedGroup.add(child.clone());
+                        }
+                    });
+                    exportObj = clonedGroup;
+                }
+
+                // Dynamically Load Exporter
+                let exporter;
+                if(fmt === 'glb') {
+                    const { GLTFExporter } = await import('three/addons/exporters/GLTFExporter.js');
+                    exporter = new GLTFExporter();
+                    exporter.parse(exportObj, (res) => {
+                        const blob = new Blob([res], { type: 'application/octet-stream' });
+                        download(blob, `tree.${fmt}`);
+                    }, { binary: true });
+                } else {
+                    // SWITCHED TO OBJ EXPORTER
+                    const { OBJExporter } = await import('three/addons/exporters/OBJExporter.js');
+                    exporter = new OBJExporter();
+                    const res = exporter.parse(exportObj);
+                    const blob = new Blob([res], { type: 'text/plain' });
+                    download(blob, `tree.obj`);
+                }
+
+            } catch(e) {
+                console.error(e);
+                showToast("Export Failed (See Console)", true);
+            }
+        }
+
+        function download(blob, filename) {
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            link.click();
+            showToast("Download Started!");
+        }
+
+        // --- UI BINDINGS ---
+        function updateUI() {
+            Object.keys(config).forEach(k => {
+                const el = document.getElementById('inp-' + k);
+                const colEl = document.getElementById('inp-color-' + (k.includes('bark')?'bark':'leaf'));
+                
+                if(el) { el.value = config[k]; }
+                if(colEl && k.includes('Color')) colEl.value = config[k];
+
+                const disp = document.getElementById('val-'+k);
+                if(disp) disp.innerText = config[k];
+            });
+            document.getElementById('sel-style').value = config.style;
+            document.getElementById('sel-leaf-type').value = config.leafType;
+        }
+
+        function bind(id, key, isFloat=true) {
+            const el = document.getElementById(id);
+            if(!el) return;
+            el.addEventListener('input', (e) => {
+                config[key] = isFloat ? parseFloat(e.target.value) : e.target.value;
+                const disp = document.getElementById(id.replace('inp','val'));
+                if(disp) disp.innerText = config[key];
+            });
+        }
+
+        bind('inp-height', 'height'); bind('inp-thick', 'thick'); bind('inp-taper', 'taper');
+        bind('inp-bdens', 'branchDens'); bind('inp-angle', 'angle'); bind('inp-grav', 'gravity');
+        bind('inp-noise', 'noise'); bind('inp-ldens', 'leafDens'); bind('inp-lsize', 'leafSize');
+        bind('inp-seed', 'seed', true); bind('inp-sun', 'sun');
+
+        document.getElementById('inp-color-bark').addEventListener('input', e => config.barkColor = e.target.value);
+        document.getElementById('inp-color-leaf').addEventListener('input', e => config.leafColor = e.target.value);
+
+        document.getElementById('sel-style').addEventListener('change', e => { config.style = e.target.value; generate(); });
+        document.getElementById('sel-leaf-type').addEventListener('change', e => config.leafType = e.target.value);
+        
+        document.getElementById('sel-preset').addEventListener('change', e => {
+            Object.assign(config, PRESETS[e.target.value]);
+            updateUI(); generate();
+        });
+
+        document.getElementById('btn-gen').onclick = generate;
+        document.getElementById('btn-glb').onclick = () => doExport('glb');
+        document.getElementById('btn-obj').onclick = () => doExport('obj');
+        document.getElementById('btn-toggle').onclick = () => document.getElementById('panel').classList.toggle('closed');
+
+        window.onload = () => {
+            document.getElementById('loading').style.display = 'none';
+            generate(); updateUI(); animate();
+        };
+        window.onresize = () => {
+            camera.aspect = window.innerWidth/window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        };
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+    </script>
+</body>
+</html>
